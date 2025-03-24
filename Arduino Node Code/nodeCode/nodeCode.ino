@@ -6,8 +6,8 @@ Current known bugs and issues:
   wait time to incur every cycle, slowly increasing delay time between readings.
 */
 
-#include "XBee.h"
-#include "TimerOne.h"
+#include "XBee.h" //Adds the Xbee library from arduino 
+#include "TimerOne.h" //Adds the TimerOne Library from arduino
 
 // modes:
 #define MOBILE_NODE 1
@@ -16,16 +16,15 @@ Current known bugs and issues:
 #define MAX_LEN 15
 #define ANCHOR_SEARCH_FREQ 15  // number of minutes anchors are searched for
 #define LAGTIME 1000  // Time between each polling each anchor for RSSI values in ms
-
+#define DELAY_TIME_MS 1000// Timeout variable. Nodes wait x ms before timing out. (Used to be a global variable)
 // create the XBee object
 XBee xbee = XBee();
-ZBRxResponse rx;
-ZBTxRequest tx;
+ZBRxResponse rx; //Creates the Class for the rx response within the Xbee Library
+ZBTxRequest tx; //Stores Payload class data within the Xbee Library
 
 // mode variable
 int mode = ANCHOR_NODE;
 
-int delay_time_ms = 1000;  // timout variable. Nodes will wait for a packet response up to this value in ms before timing out.
 
 // anchor list variables
 long addr_list[MAX_LEN];
@@ -77,7 +76,7 @@ void loop() {
     
   switch(mode) {
     case ANCHOR_NODE:
-      receiveAnchorPackets(delay_time_ms);
+      receiveAnchorPackets(DELAY_TIME_MS);
     break;
     case MOBILE_NODE:
       getRSSIFromAnchors();  // poll each anchor node in list for rssi readings and send them to coordinator
@@ -86,12 +85,12 @@ void loop() {
         anchorSearch();
         // give time to receive anchor responses
         int currentTime = millis();
-        while((millis() - currentTime) < delay_time_ms*2) {
-          receiveMobilePackets(delay_time_ms);
+        while((millis() - currentTime) < DELAY_TIME_MS*2) {
+          receiveMobilePackets(DELAY_TIME_MS);
         }
         
       }
-      receiveMobilePackets(delay_time_ms);
+      receiveMobilePackets(DELAY_TIME_MS);
     break;  
   }
 }
@@ -117,7 +116,7 @@ char getRSSI()
     if (xbee.getResponse().getApiId() == AT_COMMAND_RESPONSE) {
       xbee.getResponse().getAtCommandResponse(atResponse);
       if (atResponse.isOk()) {
-        //Serial.println("is OK");
+        Serial.println("is OK"); // Debug line for testing (Remove Later)
         if (atResponse.getValueLength() > 0) {
           for (int i = 0; i < atResponse.getValueLength(); i++) {
             rssi = atResponse.getValue()[i];
@@ -143,8 +142,8 @@ char getRSSI()
       //No response from radio
     }
   }
-  //Serial.print("RSSI Value is: ");
-  //Serial.println(rssi,HEX);
+  Serial.print("RSSI Value is: "); // Debug line for testing (Remove Later)
+  Serial.println(rssi,HEX); // Debug line for testing (Remove Later)
   return rssi; 
 }
 
@@ -184,7 +183,7 @@ void getSL(uint8_t* addr)
     if (xbee.getResponse().getApiId() == AT_COMMAND_RESPONSE) {
       xbee.getResponse().getAtCommandResponse(atResponse);
       if (atResponse.isOk()) {
-        //Serial.println("is OK");
+        Serial.println("is OK"); // Debug line for testing (Remove Later)
         if (atResponse.getValueLength() > 0) {
           for (int i = 0; i < atResponse.getValueLength(); i++) {
             addr[i] = atResponse.getValue()[i];
@@ -217,7 +216,7 @@ void receiveMobilePackets(int delayTime) {
   xbee.readPacket(delayTime);     
   if (xbee.getResponse().isAvailable()) {
     // got something
-    //Serial.println("Packet Received!");
+    Serial.println("Packet Received!"); // Debug line for testing (Remove Later)
     if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
       // got a zb rx packet
       digitalWrite(13,HIGH);
@@ -238,12 +237,12 @@ void receiveMobilePackets(int delayTime) {
             addr_list[sizeOfList-1] = (long)rx.getRemoteAddress64().getLsb();
           }
         }
-        //Serial.println("Adding to anchor list!");
+        Serial.println("Adding to anchor list!"); // Debug line for testing (Remove Later)
         //Serial.println(addr_list[sizeOfList-1],HEX);
       }
-      else if(rx.getFrameData()[rx.getDataOffset()] == 0xFD) { // Mobile Polling Frequency
-        delay_time_ms = rx.getFrameData()[rx.getDataOffset() + 1];
-        //Serial.println("Adding to anchor list!");
+      //else if(rx.getFrameData()[rx.getDataOffset()] == 0xFD) { // Mobile Polling Frequency (Commented out for Bug testing)
+        //DELAY_TIME_MS = rx.getFrameData()[rx.getDataOffset() + 1];
+        //Serial.println("Adding to anchor list!"); // Debug line for testing (Remove Later)
         //Serial.println(addr_list[sizeOfList-1],HEX);
       }
     }
@@ -308,16 +307,18 @@ void getRSSIFromAnchors()
       // Trasmit RSSI Request Packet................................................................
       xbee.send(tx);
       // Wait for response..........................................................................
-      xbee.readPacket(delay_time_ms);  // wait for packet response up to X ms     
+      xbee.readPacket(DELAY_TIME_MS);  // wait for packet response up to X ms     
       if (xbee.getResponse().isAvailable()) {
         // got something
         if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
           // got a zb rx packet
+          serial.println("Zb RX Packet recieved (line 316)") // Debug line for testing (Remove Later)
           digitalWrite(13,HIGH);
           // now fill our zb rx class
           xbee.getResponse().getZBRxResponse(rx);
           if(rx.getFrameData()[rx.getDataOffset()] == 0xDB) { // RSSI Response
             // add data to packet to send to coordinator
+            // sets the payload (Lines 323 to 331)
             getSL(myAddr);
             mobilePayload[(j)*5 + 6] = rx.getFrameData()[rx.getDataOffset()+1];  // second bit of payload contains RSSI value
             mobilePayload[(j)*5 + 7] = (long)(rx.getRemoteAddress64().getLsb() >> 24) & 0xFF;
@@ -331,7 +332,9 @@ void getRSSIFromAnchors()
       }
     }
     // Transmit packet to coordinator after transmitting to each node...................................
+    // Repacks that payload and sends it to the cordinator after transmission to each node
     if(transmitFlag) {
+      serial.println("Payload sent") // Debug line for testing (Remove Later)
       mobilePayload[0] = 0xF0;  // Coordinator RSSI packet type
       mobilePayload[1] = ((j)*5 + 6) - 2;  // payload length after packet identifier and this byte
       mobilePayload[2] = myAddr[0]; 
