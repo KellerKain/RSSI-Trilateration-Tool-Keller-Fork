@@ -237,7 +237,6 @@ void receiveMobilePackets(int delayTime) {
             addr_list[sizeOfList-1] = (long)rx.getRemoteAddress64().getLsb();
           }
         }
-<<<<<<< HEAD
         Serial.println("Adding to anchor list!"); // Debug line for testing (Remove Later)
         //Serial.println(addr_list[sizeOfList-1],HEX);
       }
@@ -245,15 +244,7 @@ void receiveMobilePackets(int delayTime) {
         //DELAY_TIME_MS = rx.getFrameData()[rx.getDataOffset() + 1];
         //Serial.println("Adding to anchor list!"); // Debug line for testing (Remove Later)
         //Serial.println(addr_list[sizeOfList-1],HEX);
-=======
-        Serial.println("Adding to anchor list!");
-        Serial.println(addr_list[sizeOfList-1],HEX);
-      }
-      else if(rx.getFrameData()[rx.getDataOffset()] == 0xFD) { // Mobile Polling Frequency
-        delay_time_ms = rx.getFrameData()[rx.getDataOffset() + 1];
-        Serial.println("Adding to anchor list! 0xFD");
-        Serial.println(addr_list[sizeOfList-1],HEX);
->>>>>>> 42ede4c4bd0f40b9cf4f5364ed43ec0aa688dcf6
+
       }
     }
   }
